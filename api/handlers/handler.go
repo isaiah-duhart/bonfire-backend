@@ -9,4 +9,5 @@ import (
 type Handler struct {
 	Queries *database.Queries
 	Database *sql.DB
+	Secret string
 }

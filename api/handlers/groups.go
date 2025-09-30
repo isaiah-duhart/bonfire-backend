@@ -95,21 +95,14 @@ func (h *Handler) DeleteGroup(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetGroups(w http.ResponseWriter, r *http.Request){
-	user := r.URL.Query().Get("user_id")
-	if user == "" {
-		fmt.Println("Missing user_id query param: ")
-		utils.RespondWithError(w, 400, "user_id is required")
+	userID, ok := r.Context().Value(userIDKey).(uuid.UUID)
+	if !ok {
+		fmt.Println("Couldn't get userID from context: ", r.Context().Value(userIDKey))
+		utils.RespondWithError(w, 403, "invalid jwt")
 		return
 	}
 
-	user_id, err := uuid.Parse(user)
-	if err != nil {
-		fmt.Println("Error pasrsing user_id query param: ", err)
-		utils.RespondWithError(w, 400, "user_id is not a valid uuid")
-		return
-	}
-
-	groups, err := h.Queries.GetGroupsByUserID(r.Context(), user_id)
+	groups, err := h.Queries.GetGroupsByUserID(r.Context(), userID)
 	if err != nil {
 		fmt.Println("Error getting groups: ", err)
 		utils.RespondWithError(w, 500, "something went wrong")

@@ -25,10 +25,9 @@ func main() {
 
 	h.Database = db
 	h.Queries = database.New(db)
+	h.Secret = os.Getenv("JWT_SECRET")
 
-	router := routes.GetRoutes(&h)
-
-	if err = http.ListenAndServe(":8080", router); err != nil {
+	if err = http.ListenAndServe(":8080", routes.GetRoutes(&h)); err != nil {
 		fmt.Println("Error starting server: ", err)
 		return
 	}

@@ -81,3 +81,23 @@ func (q *Queries) GetGroupsByUserID(ctx context.Context, userID uuid.UUID) ([]Gr
 	}
 	return items, nil
 }
+
+const isUserInGroup = `-- name: IsUserInGroup :one
+SELECT EXISTS (
+    SELECT 1
+    FROM groups
+    WHERE group_id = $1 AND user_id = $2
+)
+`
+
+type IsUserInGroupParams struct {
+	GroupID uuid.UUID
+	UserID  uuid.UUID
+}
+
+func (q *Queries) IsUserInGroup(ctx context.Context, arg IsUserInGroupParams) (bool, error) {
+	row := q.db.QueryRowContext(ctx, isUserInGroup, arg.GroupID, arg.UserID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}

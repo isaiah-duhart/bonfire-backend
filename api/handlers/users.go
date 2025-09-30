@@ -82,18 +82,14 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
-	type parameters struct {
-		UserId uuid.UUID `json:"user_id"`
-	}
-
-	params := parameters{}
-	if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
-		fmt.Println("Error decoding params: ", err)
-		utils.RespondWithError(w, 500, "something went wrong")
+	userID, ok := r.Context().Value(userIDKey).(uuid.UUID)
+	if !ok {
+		fmt.Println("Couldn't get userID from context: ", r.Context().Value(userIDKey))
+		utils.RespondWithError(w, 403, "invalid jwt")
 		return
 	}
 
-	if err := h.Queries.DeleteUser(r.Context(), params.UserId); err != nil {
+	if err := h.Queries.DeleteUser(r.Context(), userID); err != nil {
 		fmt.Println("Error deleting user: ", err)
 		utils.RespondWithError(w, 500, "something went wrong")
 		return

@@ -23,7 +23,13 @@ func (h *Handler) CreateGroupResponse(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
 		GroupQuestionId uuid.UUID `json:"group_question_id"`
 		Response string `json:"response"`
-		AuthorId uuid.UUID `json:"author_id"`
+	}
+
+	userID, ok := r.Context().Value(userIDKey).(uuid.UUID)
+	if !ok {
+		fmt.Println("Couldn't get userID from context: ", r.Context().Value(userIDKey))
+		utils.RespondWithError(w, 403, "invalid jwt")
+		return
 	}
 
 	params := parameters{}
@@ -36,7 +42,7 @@ func (h *Handler) CreateGroupResponse(w http.ResponseWriter, r *http.Request) {
 	groupResponse, err := h.Queries.CreateGroupResponse(r.Context(), database.CreateGroupResponseParams{
 		GroupQuestionID: params.GroupQuestionId,
 		Response: params.Response,
-		AuthorID: params.AuthorId,
+		AuthorID: userID,
 	})
 	if err != nil {
 		fmt.Println("Error inserting group response: ", err)
@@ -53,31 +59,23 @@ func (h *Handler) CreateGroupResponse(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetGroupResponses(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query()
-	if query.Get("group_question_id") == "" || query.Get("author_id") == "" {
-		fmt.Println("Params missing from query: ", query)
-		utils.RespondWithError(w, 400, "missing required params group_question_id and author_id")
+	userID, ok := r.Context().Value(userIDKey).(uuid.UUID)
+	if !ok {
+		fmt.Println("Couldn't get userID from context: ", r.Context().Value(userIDKey))
+		utils.RespondWithError(w, 403, "invalid jwt")
 		return
 	}
 
-	groupQuestionID, err := uuid.Parse(query.Get("group_question_id"))
+	groupQuestionID, err := uuid.Parse(r.PathValue("group_question_id"))
 	if err != nil {
 		fmt.Println("Error parsing group_question_id: ", err)
 		utils.RespondWithError(w, 400, "group_question_id is not a uuid")
 		return
 	}
-
-	authorID, err := uuid.Parse(query.Get("author_id"))
-	if err != nil {
-		fmt.Println("Error parsing author_id: ", err)
-		utils.RespondWithError(w, 400, "author_id is not a uuid")
-		return
-	}
 	
-
 	groupResponses, err := h.Queries.GetGroupResponses(r.Context(), database.GetGroupResponsesParams{
 		GroupQuestionID: groupQuestionID,
-		AuthorID: authorID,
+		AuthorID: userID,
 	})
 	if err != nil {
 		fmt.Println("Error getting group answers: ", err)
