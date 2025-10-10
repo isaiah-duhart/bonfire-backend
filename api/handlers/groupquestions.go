@@ -50,8 +50,14 @@ func (h *Handler) DeleteGroupQuestions(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetGroupQuestions(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
 		GroupID uuid.UUID `json:"group_id"`
-		UserID uuid.UUID `json:"user_id"`
 		Date civil.Date `json:"date"`
+	}
+
+	userID, ok := r.Context().Value(userIDKey).(uuid.UUID)
+	if !ok {
+		fmt.Println("Couldn't get userID from context: ", r.Context().Value(userIDKey))
+		utils.RespondWithError(w, 403, "invalid jwt")
+		return
 	}
 
 	params := parameters{}
@@ -70,11 +76,27 @@ func (h *Handler) GetGroupQuestions(w http.ResponseWriter, r *http.Request) {
 	defer tx.Rollback()
 
 	qtx := h.Queries.WithTx(tx)
+
+	exists, err := qtx.IsUserInGroup(r.Context(), database.IsUserInGroupParams{
+		GroupID: params.GroupID,
+		UserID: userID,
+	})
+	if err != nil {
+		fmt.Println("Error checking if user is in group: ", err)
+		utils.RespondWithError(w, 500, "something went wrong")
+		return
+	}
+	if !exists {
+		fmt.Printf("Error user %v is not in group %v\n", userID, params.GroupID)
+		utils.RespondWithError(w, 403, "user is not in group")
+		return
+	}
+	
 	resp := []GroupQuestionsResponse{}
 
 	numUsersGroupQuestions, err := qtx.CountGroupQuestions(r.Context(), database.CountGroupQuestionsParams{
 		Date: params.Date,
-		CreatedBy: params.UserID,
+		CreatedBy: userID,
 		GroupID: params.GroupID,
 	})
 	if err != nil {
@@ -86,7 +108,7 @@ func (h *Handler) GetGroupQuestions(w http.ResponseWriter, r *http.Request) {
 	if numUsersGroupQuestions < dailyLimit {
 		groupQuestions, err := qtx.CreateGroupQuestions(r.Context(), database.CreateGroupQuestionsParams{
 			GroupID: params.GroupID,
-			CreatedBy: params.UserID,
+			CreatedBy: userID,
 			Date: params.Date,
 			Limit: int32(dailyLimit - numUsersGroupQuestions),
 		})
@@ -107,7 +129,7 @@ func (h *Handler) GetGroupQuestions(w http.ResponseWriter, r *http.Request) {
 		r.Context(), 
 		database.GetGroupQuestionsParams{
 			GroupID: params.GroupID,
-			CreatedBy: params.UserID,
+			CreatedBy: userID,
 			Date: params.Date,
 	})
 	if err != nil {
@@ -129,6 +151,7 @@ func (h *Handler) GetGroupQuestions(w http.ResponseWriter, r *http.Request) {
 			GroupID: groupQuestion.GroupID,
 			Date: groupQuestion.Date,
 			QuestionText: groupQuestion.Text,
+			CreatedBy: groupQuestion.CreatedBy,
 		})
 	}
 	fmt.Println(groupQuestions)

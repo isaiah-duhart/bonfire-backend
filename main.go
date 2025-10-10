@@ -10,6 +10,7 @@ import (
 	"github.com/isaiah-duhart/bonfire-backend/api/routes"
 	"github.com/isaiah-duhart/bonfire-backend/internal/database"
 	"github.com/joho/godotenv"
+	"github.com/rs/cors"
 	_ "github.com/lib/pq"
 )
 
@@ -25,10 +26,16 @@ func main() {
 
 	h.Database = db
 	h.Queries = database.New(db)
+	h.Secret = os.Getenv("JWT_SECRET")
 
-	router := routes.GetRoutes(&h)
+	handler := cors.New(cors.Options{
+		AllowedOrigins:   []string{"http://localhost:5173"},
+		AllowedMethods:   []string{"GET", "POST", "DELETE"},
+		AllowedHeaders:   []string{"Content-Type", "Authorization"},
+		AllowCredentials: true,
+	}).Handler(routes.GetRoutes(&h))
 
-	if err = http.ListenAndServe(":8080", router); err != nil {
+	if err = http.ListenAndServe(":8080", handler); err != nil {
 		fmt.Println("Error starting server: ", err)
 		return
 	}

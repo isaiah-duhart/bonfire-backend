@@ -12,19 +12,49 @@ import (
 )
 
 const createGroup = `-- name: CreateGroup :one
+WITH users as (
+    SELECT id, email, password, name, birthday, created_at, updated_at FROM users WHERE users.email = $3
+)
 INSERT INTO groups (id, group_id, group_name, user_id, created_at, updated_at)
-VALUES(gen_random_uuid(), $1, $2, $3, NOW(), NOW())
+SELECT gen_random_uuid(), $1, $2, users.id, NOW(), NOW()
+FROM users
 RETURNING id, group_id, user_id, created_at, updated_at, group_name
 `
 
 type CreateGroupParams struct {
 	GroupID   uuid.UUID
 	GroupName string
-	UserID    uuid.UUID
+	Email     string
 }
 
 func (q *Queries) CreateGroup(ctx context.Context, arg CreateGroupParams) (Group, error) {
-	row := q.db.QueryRowContext(ctx, createGroup, arg.GroupID, arg.GroupName, arg.UserID)
+	row := q.db.QueryRowContext(ctx, createGroup, arg.GroupID, arg.GroupName, arg.Email)
+	var i Group
+	err := row.Scan(
+		&i.ID,
+		&i.GroupID,
+		&i.UserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.GroupName,
+	)
+	return i, err
+}
+
+const createGroupWithUserID = `-- name: CreateGroupWithUserID :one
+INSERT INTO groups (id, group_id, group_name, user_id, created_at, updated_at)
+VALUES(gen_random_uuid(), $1, $2, $3, NOW(), NOW())
+RETURNING id, group_id, user_id, created_at, updated_at, group_name
+`
+
+type CreateGroupWithUserIDParams struct {
+	GroupID   uuid.UUID
+	GroupName string
+	UserID    uuid.UUID
+}
+
+func (q *Queries) CreateGroupWithUserID(ctx context.Context, arg CreateGroupWithUserIDParams) (Group, error) {
+	row := q.db.QueryRowContext(ctx, createGroupWithUserID, arg.GroupID, arg.GroupName, arg.UserID)
 	var i Group
 	err := row.Scan(
 		&i.ID,
@@ -80,4 +110,24 @@ func (q *Queries) GetGroupsByUserID(ctx context.Context, userID uuid.UUID) ([]Gr
 		return nil, err
 	}
 	return items, nil
+}
+
+const isUserInGroup = `-- name: IsUserInGroup :one
+SELECT EXISTS (
+    SELECT 1
+    FROM groups
+    WHERE group_id = $1 AND user_id = $2
+)
+`
+
+type IsUserInGroupParams struct {
+	GroupID uuid.UUID
+	UserID  uuid.UUID
+}
+
+func (q *Queries) IsUserInGroup(ctx context.Context, arg IsUserInGroupParams) (bool, error) {
+	row := q.db.QueryRowContext(ctx, isUserInGroup, arg.GroupID, arg.UserID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }

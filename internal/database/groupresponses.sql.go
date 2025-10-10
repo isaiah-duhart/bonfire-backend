@@ -7,14 +7,26 @@ package database
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
 
 const createGroupResponse = `-- name: CreateGroupResponse :one
-INSERT INTO group_responses (id, group_question_id, response, created_at, author_id)
-VALUES (gen_random_uuid(), $1, $2, NOW(), $3)
-RETURNING id, group_question_id, response, created_at, author_id
+WITH inserted as (
+  INSERT INTO group_responses (id, group_question_id, response, created_at, author_id)
+  VALUES (gen_random_uuid(), $1, $2, NOW(), $3)
+  RETURNING id, group_question_id, response, created_at, author_id
+)
+SELECT
+  i.id,
+  i.group_question_id,
+  i.response,
+  i.created_at,
+  u.name,
+  u.id
+FROM inserted i
+JOIN users u ON i.author_id = u.id
 `
 
 type CreateGroupResponseParams struct {
@@ -23,23 +35,40 @@ type CreateGroupResponseParams struct {
 	AuthorID        uuid.UUID
 }
 
-func (q *Queries) CreateGroupResponse(ctx context.Context, arg CreateGroupResponseParams) (GroupResponse, error) {
+type CreateGroupResponseRow struct {
+	ID              uuid.UUID
+	GroupQuestionID uuid.UUID
+	Response        string
+	CreatedAt       time.Time
+	Name            string
+	ID_2            uuid.UUID
+}
+
+func (q *Queries) CreateGroupResponse(ctx context.Context, arg CreateGroupResponseParams) (CreateGroupResponseRow, error) {
 	row := q.db.QueryRowContext(ctx, createGroupResponse, arg.GroupQuestionID, arg.Response, arg.AuthorID)
-	var i GroupResponse
+	var i CreateGroupResponseRow
 	err := row.Scan(
 		&i.ID,
 		&i.GroupQuestionID,
 		&i.Response,
 		&i.CreatedAt,
-		&i.AuthorID,
+		&i.Name,
+		&i.ID_2,
 	)
 	return i, err
 }
 
 const getGroupResponses = `-- name: GetGroupResponses :many
-SELECT gr.id, gr.group_question_id, gr.response, gr.created_at, gr.author_id
+SELECT 
+  gr.id,
+  gr.group_question_id,
+  gr.response,
+  gr.created_at,
+  u.name,
+  u.id
 FROM group_responses gr
 JOIN group_questions gq ON gr.group_question_id = gq.id
+JOIN users u ON gr.author_id = u.id
 WHERE gr.group_question_id = $1
   AND (
     gr.author_id = $2
@@ -60,21 +89,31 @@ type GetGroupResponsesParams struct {
 	AuthorID        uuid.UUID
 }
 
-func (q *Queries) GetGroupResponses(ctx context.Context, arg GetGroupResponsesParams) ([]GroupResponse, error) {
+type GetGroupResponsesRow struct {
+	ID              uuid.UUID
+	GroupQuestionID uuid.UUID
+	Response        string
+	CreatedAt       time.Time
+	Name            string
+	ID_2            uuid.UUID
+}
+
+func (q *Queries) GetGroupResponses(ctx context.Context, arg GetGroupResponsesParams) ([]GetGroupResponsesRow, error) {
 	rows, err := q.db.QueryContext(ctx, getGroupResponses, arg.GroupQuestionID, arg.AuthorID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GroupResponse
+	var items []GetGroupResponsesRow
 	for rows.Next() {
-		var i GroupResponse
+		var i GetGroupResponsesRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.GroupQuestionID,
 			&i.Response,
 			&i.CreatedAt,
-			&i.AuthorID,
+			&i.Name,
+			&i.ID_2,
 		); err != nil {
 			return nil, err
 		}
@@ -87,4 +126,25 @@ func (q *Queries) GetGroupResponses(ctx context.Context, arg GetGroupResponsesPa
 		return nil, err
 	}
 	return items, nil
+}
+
+const isUserInGroupByGroupQuestionID = `-- name: IsUserInGroupByGroupQuestionID :one
+SELECT EXISTS (
+  SELECT 1 
+  FROM group_questions as gq
+  JOIN groups as g ON gq.group_id = g.group_id
+  WHERE gq.id = $1 AND g.user_id = $2
+)
+`
+
+type IsUserInGroupByGroupQuestionIDParams struct {
+	ID     uuid.UUID
+	UserID uuid.UUID
+}
+
+func (q *Queries) IsUserInGroupByGroupQuestionID(ctx context.Context, arg IsUserInGroupByGroupQuestionIDParams) (bool, error) {
+	row := q.db.QueryRowContext(ctx, isUserInGroupByGroupQuestionID, arg.ID, arg.UserID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }
