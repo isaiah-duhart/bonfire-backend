@@ -71,13 +71,16 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.RespondWithJson(w, 200, UserResponse{
-		ID: user.ID,
-		Email: user.Email,
-		Name: user.Name,
-		Birthday: user.Birthday.Time,
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
+	token, err := utils.MakeJWT(user.ID, h.Secret, time.Hour * 24)
+	if err != nil {
+		fmt.Println("Error generating jwt: ", err)
+		utils.RespondWithError(w, 500, "something went wrong")
+		return
+	}
+
+	utils.RespondWithJson(w, 200, authResponse{
+		Token: token,
+		UserID: user.ID.String(),
 	})
 }
 

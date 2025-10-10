@@ -20,7 +20,14 @@ type Group struct {
 func (h *Handler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
 		GroupName string `json:"group_name"`
-		MemberIds uuid.UUIDs `json:"members"`
+		MemberEmails []string `json:"member_emails"`
+	}
+
+	userID, ok := r.Context().Value(userIDKey).(uuid.UUID)
+	if !ok {
+		fmt.Println("Invalid jwt: ", userID)
+		utils.RespondWithError(w, 403, "invalid jwt")
+		return
 	}
 
 	params := parameters{}
@@ -29,7 +36,6 @@ func (h *Handler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 		utils.RespondWithError(w, 500, "something went wrong")
 		return
 	}
-
 	
 	tx, err := h.Database.BeginTx(r.Context(), nil)
 	if err != nil {
@@ -44,11 +50,31 @@ func (h *Handler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 	groups := []Group{}
 	groupId := uuid.New()
 
-	for _, memberId := range(params.MemberIds) {
+	// Create row for group creator
+	row, err := qtx.CreateGroupWithUserID(r.Context(), database.CreateGroupWithUserIDParams{
+		GroupID: groupId,
+		GroupName: params.GroupName,
+		UserID: userID,
+	})
+	if err != nil {
+		fmt.Println("Error creating group: ", err)
+		utils.RespondWithError(w, 500, "something went wrong")
+		return
+	}
+
+	groups = append(groups, Group{
+		ID: row.ID,
+		GroupID: row.GroupID,
+		GroupName: row.GroupName,
+		UserID: row.UserID,
+	})
+
+	// Create group requests
+	for _, memberEmail := range params.MemberEmails {
 		row, err := qtx.CreateGroup(r.Context(), database.CreateGroupParams{
 			GroupID: groupId,
 			GroupName: params.GroupName,
-			UserID: memberId,
+			Email: memberEmail,
 		})
 		if err != nil {
 			fmt.Println("Error creating group: ", err)

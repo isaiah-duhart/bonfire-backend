@@ -151,6 +151,7 @@ func (h *Handler) GetGroupQuestions(w http.ResponseWriter, r *http.Request) {
 			GroupID: groupQuestion.GroupID,
 			Date: groupQuestion.Date,
 			QuestionText: groupQuestion.Text,
+			CreatedBy: groupQuestion.CreatedBy,
 		})
 	}
 	fmt.Println(groupQuestions)

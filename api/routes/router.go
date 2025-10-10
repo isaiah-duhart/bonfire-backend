@@ -18,7 +18,7 @@ func GetRoutes(h *handlers.Handler) *http.ServeMux {
 
 	// Group Endpoints
 	serveMux.HandleFunc("GET /api/groups", h.AuthMiddleware(h.GetGroups))
-	serveMux.HandleFunc("POST /api/groups", h.CreateGroup)
+	serveMux.HandleFunc("POST /api/groups", h.AuthMiddleware(h.CreateGroup))
 	serveMux.HandleFunc("DELETE /api/groups", h.DeleteGroup)
 
 	// Question Endpoints
@@ -26,7 +26,7 @@ func GetRoutes(h *handlers.Handler) *http.ServeMux {
 	serveMux.HandleFunc("DELETE /api/questions", h.DeleteQuestion)
 	
 	// Group Question Endpoints
-	serveMux.HandleFunc("POST /api/group-questions", h.GetGroupQuestions)
+	serveMux.HandleFunc("POST /api/group-questions", h.AuthMiddleware(h.GetGroupQuestions))
 	serveMux.HandleFunc("DELETE /api/group-questions", h.DeleteGroupQuestions)
 
 	// Group Response Endpoints
