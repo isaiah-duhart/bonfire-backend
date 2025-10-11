@@ -2,31 +2,41 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
+	"log"
 	"net/http"
 	"os"
 
 	"github.com/isaiah-duhart/bonfire-backend/api/handlers"
 	"github.com/isaiah-duhart/bonfire-backend/api/routes"
 	"github.com/isaiah-duhart/bonfire-backend/internal/database"
+	"github.com/isaiah-duhart/bonfire-backend/utils"
 	"github.com/joho/godotenv"
-	"github.com/rs/cors"
 	_ "github.com/lib/pq"
+	"github.com/rs/cors"
 )
 
 func main() {
 	godotenv.Load()
+
+	db_url := os.Getenv("DB_URL")
+	jwt_secret := os.Getenv("JWT_SECRET")
+
+	if utils.IsRunningOnEC2() {
+		secrets := utils.GetAWSSecrets()
+		db_url = secrets.DB_URL
+		jwt_secret = secrets.JWT_SECRET
+	}
+
 	h := handlers.Handler{}
 
-	db, err := sql.Open("postgres", os.Getenv("DB_URL"))
+	db, err := sql.Open("postgres", db_url)
 	if err != nil {
-		fmt.Println("Error creating db connection: ", err)
-		return
+		log.Fatalf("Error creating db connection: %v", err)
 	}
 
 	h.Database = db
 	h.Queries = database.New(db)
-	h.Secret = os.Getenv("JWT_SECRET")
+	h.Secret = jwt_secret
 
 	handler := cors.New(cors.Options{
 		AllowedOrigins:   []string{"http://localhost:5173"},
@@ -36,7 +46,6 @@ func main() {
 	}).Handler(routes.GetRoutes(&h))
 
 	if err = http.ListenAndServe(":8080", handler); err != nil {
-		fmt.Println("Error starting server: ", err)
-		return
+		log.Fatalf("Error starting server: %v", err)
 	}
 }

@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -21,14 +21,14 @@ func (h *Handler) CreateQuestion(w http.ResponseWriter, r *http.Request) {
 
 	params := parameters{}
 	if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
-		fmt.Println("Error decoding params: ", err)
+		log.Println("Error decoding params: ", err)
 		utils.RespondWithError(w, 500, "something went wrong")
 		return
 	}
 
 	question, err := h.Queries.CreateQuestion(r.Context(), params.Text)
 	if err != nil {
-		fmt.Println("Error creating question: ", err)
+		log.Println("Error creating question: ", err)
 		utils.RespondWithError(w, 500, "something went wrong")
 		return
 	}
@@ -46,14 +46,14 @@ func (h *Handler) DeleteQuestion(w http.ResponseWriter, r *http.Request) {
 
 	params := parameters{}
 	if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
-		fmt.Println("Error decoding params: ", err)
+		log.Println("Error decoding params: ", err)
 		utils.RespondWithError(w, 500, "something went wrong")
 		return
 	}
 
 	err := h.Queries.DeleteQuestion(r.Context(), params.ID)
 	if err != nil {
-		fmt.Println("Error deleting question: ", err)
+		log.Println("Error deleting question: ", err)
 		utils.RespondWithError(w, 500, "something went wrong")
 		return
 	}

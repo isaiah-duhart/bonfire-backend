@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -25,21 +25,21 @@ func (h *Handler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 
 	userID, ok := r.Context().Value(userIDKey).(uuid.UUID)
 	if !ok {
-		fmt.Println("Invalid jwt: ", userID)
+		log.Println("Invalid jwt: ", userID)
 		utils.RespondWithError(w, 403, "invalid jwt")
 		return
 	}
 
 	params := parameters{}
 	if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
-		fmt.Println("Error decoding params: ", err)
+		log.Println("Error decoding params: ", err)
 		utils.RespondWithError(w, 500, "something went wrong")
 		return
 	}
 	
 	tx, err := h.Database.BeginTx(r.Context(), nil)
 	if err != nil {
-		fmt.Println("Error creating context: ", err)
+		log.Println("Error creating context: ", err)
 		utils.RespondWithError(w, 500, "something went wrong")
 		return
 	}
@@ -57,7 +57,7 @@ func (h *Handler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 		UserID: userID,
 	})
 	if err != nil {
-		fmt.Println("Error creating group: ", err)
+		log.Println("Error creating group: ", err)
 		utils.RespondWithError(w, 500, "something went wrong")
 		return
 	}
@@ -77,7 +77,7 @@ func (h *Handler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 			Email: memberEmail,
 		})
 		if err != nil {
-			fmt.Println("Error creating group: ", err)
+			log.Println("Error creating group: ", err)
 			utils.RespondWithError(w, 500, "something went wrong")
 			return
 		}
@@ -91,7 +91,7 @@ func (h *Handler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := tx.Commit(); err != nil {
-		fmt.Println("Error committing context: ", err)
+		log.Println("Error committing context: ", err)
 		utils.RespondWithError(w, 500, "something went wrong")
 		return
 	}
@@ -106,13 +106,13 @@ func (h *Handler) DeleteGroup(w http.ResponseWriter, r *http.Request) {
 
 	params := parameters{}
 	if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
-		fmt.Println("Error decoding params: ", err)
+		log.Println("Error decoding params: ", err)
 		utils.RespondWithError(w, 500, "something went wrong")
 		return
 	}
 
 	if err := h.Queries.DeleteGroup(r.Context(), params.ID); err != nil {
-		fmt.Println("Error deleting group: ", err)
+		log.Println("Error deleting group: ", err)
 		utils.RespondWithError(w, 500, "something went wrong")
 		return
 	}
@@ -123,14 +123,14 @@ func (h *Handler) DeleteGroup(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetGroups(w http.ResponseWriter, r *http.Request){
 	userID, ok := r.Context().Value(userIDKey).(uuid.UUID)
 	if !ok {
-		fmt.Println("Couldn't get userID from context: ", r.Context().Value(userIDKey))
+		log.Println("Couldn't get userID from context: ", r.Context().Value(userIDKey))
 		utils.RespondWithError(w, 403, "invalid jwt")
 		return
 	}
 
 	groups, err := h.Queries.GetGroupsByUserID(r.Context(), userID)
 	if err != nil {
-		fmt.Println("Error getting groups: ", err)
+		log.Println("Error getting groups: ", err)
 		utils.RespondWithError(w, 500, "something went wrong")
 		return
 	}

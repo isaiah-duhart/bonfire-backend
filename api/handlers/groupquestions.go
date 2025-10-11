@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
+	"log"
 	"net/http"
 
 	"cloud.google.com/go/civil"
@@ -29,7 +29,7 @@ func (h *Handler) DeleteGroupQuestions(w http.ResponseWriter, r *http.Request) {
 
 	params := parameters{}
 	if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
-		fmt.Println("Error decoding params: ", err)
+		log.Println("Error decoding params: ", err)
 		utils.RespondWithError(w, 500, "something went wrong")
 		return
 	}
@@ -39,7 +39,7 @@ func (h *Handler) DeleteGroupQuestions(w http.ResponseWriter, r *http.Request) {
 		Date: params.Date,
 	})
 	if err != nil {
-		fmt.Println("Error deleting group_questions: ", err)
+		log.Println("Error deleting group_questions: ", err)
 		utils.RespondWithError(w, 500, "something went wrong")
 		return
 	}
@@ -55,21 +55,21 @@ func (h *Handler) GetGroupQuestions(w http.ResponseWriter, r *http.Request) {
 
 	userID, ok := r.Context().Value(userIDKey).(uuid.UUID)
 	if !ok {
-		fmt.Println("Couldn't get userID from context: ", r.Context().Value(userIDKey))
+		log.Println("Couldn't get userID from context: ", r.Context().Value(userIDKey))
 		utils.RespondWithError(w, 403, "invalid jwt")
 		return
 	}
 
 	params := parameters{}
 	if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
-		fmt.Println("Error decoding params: ", err)
+		log.Println("Error decoding params: ", err)
 		utils.RespondWithError(w, 500, "something went wrong")
 		return
 	}
 
 	tx, err := h.Database.BeginTx(r.Context(), nil)
 	if err != nil {
-		fmt.Println("Error creating params: ", err)
+		log.Println("Error creating params: ", err)
 		utils.RespondWithError(w, 500, "something went wrong")
 		return
 	}
@@ -82,12 +82,12 @@ func (h *Handler) GetGroupQuestions(w http.ResponseWriter, r *http.Request) {
 		UserID: userID,
 	})
 	if err != nil {
-		fmt.Println("Error checking if user is in group: ", err)
+		log.Println("Error checking if user is in group: ", err)
 		utils.RespondWithError(w, 500, "something went wrong")
 		return
 	}
 	if !exists {
-		fmt.Printf("Error user %v is not in group %v\n", userID, params.GroupID)
+		log.Printf("Error user %v is not in group %v\n", userID, params.GroupID)
 		utils.RespondWithError(w, 403, "user is not in group")
 		return
 	}
@@ -100,7 +100,7 @@ func (h *Handler) GetGroupQuestions(w http.ResponseWriter, r *http.Request) {
 		GroupID: params.GroupID,
 	})
 	if err != nil {
-		fmt.Println("Error getting group questions: ", err)
+		log.Println("Error getting group questions: ", err)
 		utils.RespondWithError(w, 500, "something went wrong")
 		return
 	}
@@ -113,15 +113,15 @@ func (h *Handler) GetGroupQuestions(w http.ResponseWriter, r *http.Request) {
 			Limit: int32(dailyLimit - numUsersGroupQuestions),
 		})
 		if err != nil {
-			fmt.Println("Error getting group questions: ", err)
+			log.Println("Error getting group questions: ", err)
 			utils.RespondWithError(w, 500, "something went wrong")
 			return
 		}
 
 		if len(groupQuestions) < dailyLimit {
-			fmt.Println("Not enough questions to create group questions: ", groupQuestions)
-			//utils.RespondWithError(w, 500, "tell Isaiah to add more questions")
-			//return
+			log.Println("Not enough questions to create group questions: ", groupQuestions)
+			utils.RespondWithError(w, 500, "tell Isaiah to add more questions")
+			return
 		}
 	}
 
@@ -133,14 +133,14 @@ func (h *Handler) GetGroupQuestions(w http.ResponseWriter, r *http.Request) {
 			Date: params.Date,
 	})
 	if err != nil {
-		fmt.Println("Error getting group questions: ", err)
+		log.Println("Error getting group questions: ", err)
 		utils.RespondWithError(w, 500, "something went wrong")
 		return
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		fmt.Println("Error committing transaction: ", err)
+		log.Println("Error committing transaction: ", err)
 		utils.RespondWithError(w, 500, "something went wrong")
 		return
 	}
@@ -154,7 +154,6 @@ func (h *Handler) GetGroupQuestions(w http.ResponseWriter, r *http.Request) {
 			CreatedBy: groupQuestion.CreatedBy,
 		})
 	}
-	fmt.Println(groupQuestions)
 	utils.RespondWithJson(w, 200, resp)
 }
 

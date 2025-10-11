@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -28,31 +28,30 @@ func (h *Handler) CreateGroupResponse(w http.ResponseWriter, r *http.Request) {
 
 	userID, ok := r.Context().Value(userIDKey).(uuid.UUID)
 	if !ok {
-		fmt.Println("Couldn't get userID from context: ", r.Context().Value(userIDKey))
+		log.Println("Couldn't get userID from context: ", r.Context().Value(userIDKey))
 		utils.RespondWithError(w, 403, "invalid jwt")
 		return
 	}
 
 	params := parameters{}
 	if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
-		fmt.Println("Error decoding params: ", err)
+		log.Println("Error decoding params: ", err)
 		utils.RespondWithError(w, 500, "something went wrong")
 		return
 	}
 
-	fmt.Println(params)
 
 	exists, err := h.Queries.IsUserInGroupByGroupQuestionID(r.Context(), database.IsUserInGroupByGroupQuestionIDParams{
 		ID: params.GroupQuestionId,
 		UserID: userID,
 	})
 	if err != nil {
-		fmt.Println("Error checking if user is in group: ", err)
+		log.Println("Error checking if user is in group: ", err)
 		utils.RespondWithError(w, 500, "something went wrong")
 		return
 	}
 	if !exists {
-		fmt.Printf("Error user %v is not in group with questionID %v\n", userID, params.GroupQuestionId)
+		log.Printf("Error user %v is not in group with questionID %v\n", userID, params.GroupQuestionId)
 		utils.RespondWithError(w, 403, "user is not in group")
 		return
 	}
@@ -63,7 +62,7 @@ func (h *Handler) CreateGroupResponse(w http.ResponseWriter, r *http.Request) {
 		AuthorID: userID,
 	})
 	if err != nil {
-		fmt.Println("Error inserting group response: ", err)
+		log.Println("Error inserting group response: ", err)
 		utils.RespondWithError(w, 500, "something went wrong")
 		return
 	}
@@ -81,14 +80,14 @@ func (h *Handler) CreateGroupResponse(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetGroupResponses(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(userIDKey).(uuid.UUID)
 	if !ok {
-		fmt.Println("Couldn't get userID from context: ", r.Context().Value(userIDKey))
+		log.Println("Couldn't get userID from context: ", r.Context().Value(userIDKey))
 		utils.RespondWithError(w, 403, "invalid jwt")
 		return
 	}
 
 	groupQuestionID, err := uuid.Parse(r.PathValue("group_question_id"))
 	if err != nil {
-		fmt.Println("Error parsing group_question_id: ", err)
+		log.Println("Error parsing group_question_id: ", err)
 		utils.RespondWithError(w, 400, "group_question_id is not a uuid")
 		return
 	}
@@ -98,7 +97,7 @@ func (h *Handler) GetGroupResponses(w http.ResponseWriter, r *http.Request) {
 		AuthorID: userID,
 	})
 	if err != nil {
-		fmt.Println("Error getting group answers: ", err)
+		log.Println("Error getting group answers: ", err)
 		utils.RespondWithError(w, 500, "something went wrong")
 		return
 	}
