@@ -45,7 +45,7 @@ DELETE FROM group_questions
 WHERE group_id = $1 and date = $2;
 
 -- name: GetGroupQuestions :many
-SELECT DISTINCT ON (gq.id)
+SELECT
     gq.id,
     gq.group_id,
     gq.date,
@@ -61,7 +61,28 @@ WHERE gq.date = $1 AND gq.group_id = $2
       FROM group_responses gr
       WHERE gr.group_question_id = gq.id
     )
-  );
+  )
+ORDER BY gq.date DESC;
+
+-- name: GetAllGroupQuestions :many
+SELECT
+    gq.id,
+    gq.group_id,
+    gq.date,
+    q.text,
+    gq.created_by
+FROM group_questions gq
+JOIN questions q ON gq.question_id = q.id 
+WHERE gq.group_id = $1
+  AND (
+    gq.created_by = $2
+    OR EXISTS (
+      SELECT 1
+      FROM group_responses gr
+      WHERE gr.group_question_id = gq.id
+    )
+  )
+ORDER BY gq.date DESC;
 
 -- name: CountGroupQuestions :one
 SELECT COUNT(*)

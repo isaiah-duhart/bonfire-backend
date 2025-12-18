@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"log"
-	"net/http"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -15,16 +13,6 @@ import (
 type Secrets struct {
 	DB_URL     string `json:"DB_URL"`
 	JWT_SECRET string `json:"JWT_SECRET"`
-}
-
-func IsRunningOnEC2() bool {
-	client := http.Client{Timeout: 1 * time.Second}
-	resp, err := client.Get("http://169.254.169.254/latest/meta-data/")
-	if err != nil {
-		return false
-	}
-	defer resp.Body.Close()
-	return resp.StatusCode == http.StatusOK
 }
 
 func GetAWSSecrets() Secrets {
@@ -53,5 +41,6 @@ func GetAWSSecrets() Secrets {
 		log.Fatalf("Error decoding params: %v", err)
 	}
 
+	log.Println("Retrieved secrets!")
 	return secrets
 }

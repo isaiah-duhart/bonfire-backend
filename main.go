@@ -20,8 +20,13 @@ func main() {
 
 	db_url := os.Getenv("DB_URL")
 	jwt_secret := os.Getenv("JWT_SECRET")
+	port := os.Getenv("PORT")
+	if port == ""{
+		port = ":5000"
+	}
 
-	if utils.IsRunningOnEC2() {
+	if db_url == "" || jwt_secret == "" {
+		log.Println("Fetching secrets!")
 		secrets := utils.GetAWSSecrets()
 		db_url = secrets.DB_URL
 		jwt_secret = secrets.JWT_SECRET
@@ -44,8 +49,9 @@ func main() {
 		AllowedHeaders:   []string{"Content-Type", "Authorization"},
 		AllowCredentials: true,
 	}).Handler(routes.GetRoutes(&h))
-
-	if err = http.ListenAndServe(":8080", handler); err != nil {
+	
+	log.Println("Starting server on port: ", port)
+	if err = http.ListenAndServe(port, handler); err != nil {
 		log.Fatalf("Error starting server: %v", err)
 	}
 }

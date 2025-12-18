@@ -138,8 +138,71 @@ func (q *Queries) DeleteGroupQuestions(ctx context.Context, arg DeleteGroupQuest
 	return err
 }
 
+const getAllGroupQuestions = `-- name: GetAllGroupQuestions :many
+SELECT
+    gq.id,
+    gq.group_id,
+    gq.date,
+    q.text,
+    gq.created_by
+FROM group_questions gq
+JOIN questions q ON gq.question_id = q.id 
+WHERE gq.group_id = $1
+  AND (
+    gq.created_by = $2
+    OR EXISTS (
+      SELECT 1
+      FROM group_responses gr
+      WHERE gr.group_question_id = gq.id
+    )
+  )
+ORDER BY gq.date DESC
+`
+
+type GetAllGroupQuestionsParams struct {
+	GroupID   uuid.UUID
+	CreatedBy uuid.UUID
+}
+
+type GetAllGroupQuestionsRow struct {
+	ID        uuid.UUID
+	GroupID   uuid.UUID
+	Date      civil.Date
+	Text      string
+	CreatedBy uuid.UUID
+}
+
+func (q *Queries) GetAllGroupQuestions(ctx context.Context, arg GetAllGroupQuestionsParams) ([]GetAllGroupQuestionsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getAllGroupQuestions, arg.GroupID, arg.CreatedBy)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetAllGroupQuestionsRow
+	for rows.Next() {
+		var i GetAllGroupQuestionsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.GroupID,
+			&i.Date,
+			&i.Text,
+			&i.CreatedBy,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getGroupQuestions = `-- name: GetGroupQuestions :many
-SELECT DISTINCT ON (gq.id)
+SELECT
     gq.id,
     gq.group_id,
     gq.date,
@@ -156,6 +219,7 @@ WHERE gq.date = $1 AND gq.group_id = $2
       WHERE gr.group_question_id = gq.id
     )
   )
+ORDER BY gq.date DESC
 `
 
 type GetGroupQuestionsParams struct {

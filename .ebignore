@@ -1,7 +1,9 @@
 .env
-app
-logs
-# Elastic Beanstalk Files
 .elasticbeanstalk/*
 !.elasticbeanstalk/*.cfg.yml
 !.elasticbeanstalk/*.global.yml
+.git/
+*.md
+*.DS_Store
+*.go
+!app

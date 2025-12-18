@@ -9,6 +9,9 @@ import (
 func GetRoutes(h *handlers.Handler) *http.ServeMux {
 	serveMux := http.NewServeMux()
 
+	// Health Enpoint
+	serveMux.HandleFunc("GET /", h.HealthCheck)
+
 	// Login Endpoints
 	serveMux.HandleFunc("POST /api/login", h.Login)
 
@@ -26,6 +29,7 @@ func GetRoutes(h *handlers.Handler) *http.ServeMux {
 	serveMux.HandleFunc("DELETE /api/questions", h.DeleteQuestion)
 	
 	// Group Question Endpoints
+	serveMux.HandleFunc("GET /api/group-questions/{group_id}", h.AuthMiddleware(h.GetAllGroupQuestions))
 	serveMux.HandleFunc("POST /api/group-questions", h.AuthMiddleware(h.GetGroupQuestions))
 	serveMux.HandleFunc("DELETE /api/group-questions", h.DeleteGroupQuestions)
 

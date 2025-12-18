@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -154,6 +155,78 @@ func (h *Handler) GetGroupQuestions(w http.ResponseWriter, r *http.Request) {
 			CreatedBy: groupQuestion.CreatedBy,
 		})
 	}
+	utils.RespondWithJson(w, 200, resp)
+}
+
+func (h *Handler) GetAllGroupQuestions(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value(userIDKey).(uuid.UUID)
+	if !ok {
+		log.Println("Couldn't get userID from context: ", r.Context().Value(userIDKey))
+		utils.RespondWithError(w, 403, "invalid jwt")
+		return
+	}
+
+	groupID, err := uuid.Parse(r.PathValue("group_id"))
+	if err != nil {
+		log.Println("Error getting group_id from path: ", err)
+		utils.RespondWithError(w, 400, fmt.Sprint("Invalid group_id in path: ", r.PathValue("group_id")))
+		return
+	}
+
+	tx, err := h.Database.BeginTx(r.Context(), nil)
+	if err != nil {
+		log.Panicln("Error creating database tx: ", err)
+		utils.RespondWithError(w, 500, "something went wrong")
+		return
+	}
+	defer tx.Rollback()
+
+	qtx := h.Queries.WithTx(tx)
+
+	exists, err := qtx.IsUserInGroup(r.Context(), database.IsUserInGroupParams{
+		GroupID: groupID,
+		UserID: userID,
+	})
+	if err != nil {
+		log.Println("Error checking if user is in group: ", err)
+		utils.RespondWithError(w, 500, "something went wrong")
+		return
+	}
+
+	if !exists {
+		log.Printf("Error user: %v is not in group %v\n", userID, groupID)
+		utils.RespondWithError(w, 403, "invalid jwt")
+		return
+	}
+
+	resp := []GroupQuestionsResponse{}
+	groupQuestions, err := qtx.GetAllGroupQuestions(r.Context(), database.GetAllGroupQuestionsParams{
+		GroupID: groupID,
+		CreatedBy: userID,
+	})
+	if err != nil {
+		log.Println("Error getting all group questions: ", err)
+		utils.RespondWithError(w, 500, "something went wrong")
+		return
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		log.Println("Error committing transaction: ", err)
+		utils.RespondWithError(w, 500, "something went wrong")
+		return
+	}
+
+	for _, groupQuestion := range(groupQuestions) {
+		resp = append(resp, GroupQuestionsResponse{
+			ID: groupQuestion.ID,
+			GroupID: groupQuestion.GroupID,
+			Date: groupQuestion.Date,
+			QuestionText: groupQuestion.Text,
+			CreatedBy: groupQuestion.CreatedBy,
+		})
+	}
+
 	utils.RespondWithJson(w, 200, resp)
 }
 
